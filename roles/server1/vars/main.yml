@@ -1,0 +1,6 @@
+users:
+      - { name: dev1, password: "pass1" }
+      - { name: dev2, password: "pass2" }
+      - { name: dev3, password: "pass3" }
+
+my_pubkey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEVlSG1nBXKG+OWYoLdwyOwigaZfcBRasA76VXtGRu6Y acc1on@HONOR"

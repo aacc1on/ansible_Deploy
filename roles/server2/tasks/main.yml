@@ -1,0 +1,88 @@
+---
+- name: Install dependencies
+  apt:
+    name:
+      - curl
+      - git
+      - nginx
+    state: present
+    update_cache: true
+  become: true
+
+- name: Install Node.js and npm
+  shell: curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+  args:
+    executable: /bin/bash
+  become: true
+
+- name: Install Node.js
+  apt:
+    name: nodejs
+    state: present
+  become: true
+
+- name: Install pm2 globally
+  npm:
+    name: pm2
+    global: true
+    state: present
+  become: true
+
+- name: Clone repository
+  git:
+    repo: "{{ app_repo }}"
+    dest: "{{ app_dir }}"
+    version: main
+    force: yes
+
+- name: Create .env file
+  template:
+    src: env.j2
+    dest: "{{ app_dir }}/.env"
+    mode: "0644"
+  notify: restart app
+
+- name: Install app dependencies
+  npm:
+    path: "{{ app_dir }}"
+    production: false
+
+- name: Start app with pm2
+  shell: pm2 start npm --name "myapp" -- start
+  args:
+    chdir: "{{ app_dir }}"
+  become: true
+  notify: 
+    - save pm2 config
+
+- name: Save pm2 process list
+  shell: pm2 save
+  become: true
+
+- name: Setup Nginx site config
+  template:
+    src: nginx.conf.j2
+    dest: "/etc/nginx/sites-available/{{ app_domain }}"
+  become: true
+  notify: 
+    - reload nginx
+    - test nginx config
+
+- name: Enable Nginx site
+  file:
+    src: "/etc/nginx/sites-available/{{ app_domain }}"
+    dest: "/etc/nginx/sites-enabled/{{ app_domain }}"
+    state: link
+  become: true
+
+- name: Remove default nginx site
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  become: true
+
+- name: Restart nginx
+  service:
+    name: nginx
+    state: restarted
+  become: true

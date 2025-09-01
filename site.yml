@@ -1,0 +1,11 @@
+- name: Deploy to management server
+  hosts: server1
+  become: true
+  roles:
+    - server1
+
+- name: Deploy Github
+  hosts: server2
+  become: true
+  roles:
+    - server2

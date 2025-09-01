@@ -1,0 +1,30 @@
+---
+- name: restart nginx
+  service:
+    name: nginx
+    state: restarted
+  become: true
+
+- name: reload nginx
+  service:
+    name: nginx
+    state: reloaded
+  become: true
+
+- name: test nginx config
+  shell: nginx -t
+  become: true
+
+- name: restart app
+  shell: pm2 restart myapp
+  become: true
+  ignore_errors: true
+
+- name: reload app
+  shell: pm2 reload myapp
+  become: true
+  ignore_errors: true
+
+- name: save pm2 config
+  shell: pm2 save
+  become: true
