@@ -1,5 +1,6 @@
-# Users configuration - will be overridden by environment variables
-users: "{{ lookup('env', 'USERS_JSON') | from_json | default([{'name': 'default'}]) }}"
+users:
+      - { name: dev1 }
+      - { name: dev2 }
+      - { name: dev3 }
 
-# SSH public key - will be overridden by environment variable
 my_pubkey: "{{ lookup('env', 'SSH_PUBLIC_KEY') | default('') }}"

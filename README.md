@@ -1,12 +1,12 @@
 # Ansible Deploy
 
-An Ansible automation project for deploying a Node.js quiz application with user management across multiple servers.
+An Ansible automation project for deploying a Node.js quiz application with user management across multiple servers using GitHub Actions and Secrets.
 
 ## 📋 Overview
 
 This project automates the deployment of:
-- **Server1**: User management server with SSH key deployment
-- **Server2**: Node.js application server with Nginx reverse proxy
+- **Server1 (homework)**: User management server with SSH key deployment
+- **Server2 (github)**: Node.js application server with Nginx reverse proxy
 
 ## 🏗️ Architecture
 
@@ -24,16 +24,16 @@ This project automates the deployment of:
 ## 🚀 Features
 
 ### Server1 (Management Server)
-- Creates development users (dev1, dev2, dev3)
-- Sets up user passwords with secure SHA512 hashing
+- Creates development users dynamically from GitHub secrets
 - Deploys SSH public keys for passwordless authentication
 - Configures bash shell and home directories
+- Supports flexible user configuration via JSON
 
 ### Server2 (Application Server)
 - Deploys Node.js quiz application from GitHub
 - Sets up PM2 process management
 - Configures Nginx reverse proxy
-- Manages environment variables
+- Manages environment variables securely
 - Automatic dependency installation
 
 ## 📁 Project Structure
@@ -44,15 +44,63 @@ ansible_Deploy/
 ├── inventory.ini           # Server inventory
 ├── site.yml               # Main playbook
 └── roles/
-    ├── server1/
+    ├── homework/
     │   ├── tasks/main.yml  # User management tasks
-    │   └── vars/main.yml   # User definitions & SSH key
-    └── server2/
+    │   ├── vars/main.yml   # User definitions & SSH key
+    │   └── handlers/main.yml # SSH service handlers
+    └── github/
         ├── defaults/main.yml    # App configuration
         ├── tasks/main.yml       # App deployment tasks
+        ├── handlers/main.yml    # Service handlers
         └── templates/
             ├── env.j2           # Environment template
             └── nginx.conf.j2    # Nginx config template
+```
+
+## 🔐 GitHub Secrets Configuration
+
+### Required Secrets
+
+Configure the following secrets in your GitHub repository (`Settings` → `Secrets and variables` → `Actions`):
+
+#### Application Configuration Secrets
+| Secret Name | Description | Example Value |
+|-------------|-------------|---------------|
+| `ADMIN_PASSWORD` | Admin panel password | `your_secure_admin_password` |
+| `SESSION_SECRET` | Express session secret | `your_super_secret_session_key` |
+| `OPENROUTER_API_KEY` | AI API key for quiz generation | `sk-or-v1-xxxxxxxxxxxxx` |
+
+#### User Management Secrets
+| Secret Name | Description | Example Value |
+|-------------|-------------|---------------|
+| `USERS_JSON` | JSON array of users to create | `[{"name": "dev1"}, {"name": "dev2"}, {"name": "dev3"}]` |
+| `SSH_PUBLIC_KEY` | SSH public key for user authentication | `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5...` |
+
+### Setting Up Secrets
+
+1. **Navigate to your repository** on GitHub
+2. **Go to Settings** → **Secrets and variables** → **Actions**
+3. **Click "New repository secret"**
+4. **Add each secret** with the exact names listed above
+
+#### Example USERS_JSON Format:
+```json
+[
+  {"name": "dev1"},
+  {"name": "dev2"},
+  {"name": "dev3"},
+  {"name": "staging"},
+  {"name": "production"}
+]
+```
+
+#### Getting Your SSH Public Key:
+```bash
+# Generate new SSH key (if needed)
+ssh-keygen -t ed25519 -C "your_email@example.com"
+
+# Display your public key
+cat ~/.ssh/id_ed25519.pub
 ```
 
 ## ⚙️ Configuration
@@ -60,19 +108,19 @@ ansible_Deploy/
 ### Inventory Setup
 Edit `inventory.ini` to match your server details:
 ```ini
-[server1]
+[homework]
 192.168.11.86 ansible_user=root ansible_ssh_private_key_file=~/.ssh/id_rsa
 
-[server2]
+[github]
 192.168.11.87 ansible_user=root ansible_ssh_private_key_file=~/.ssh/id_rsa
 ```
 
 ### Application Configuration
-Key settings in `roles/server2/defaults/main.yml`:
+Key settings in `roles/github/defaults/main.yml`:
 - **Repository**: `https://github.com/aacc1on/quiz_MVC.git`
 - **Domain**: `quizzzzz.camdvr.org`
 - **Port**: `3000`
-- **Admin Credentials**: admin/admin123
+- **Admin Credentials**: Retrieved from GitHub secrets
 
 ## 🔧 Prerequisites
 
@@ -86,13 +134,20 @@ Key settings in `roles/server2/defaults/main.yml`:
 - Root SSH access
 - Internet connectivity for package installation
 
+### GitHub Repository
+- All required secrets configured
+- GitHub Actions enabled (if using CI/CD)
+
 ## 🚀 Deployment
 
-### Quick Start
+### Local Deployment with Secrets
 ```bash
-# Clone the repository
-git clone <your-repo-url>
-cd ansible_Deploy
+# Export secrets as environment variables
+export ADMIN_PASSWORD="your_admin_password"
+export SESSION_SECRET="your_session_secret"
+export OPENROUTER_API_KEY="your_api_key"
+export USERS_JSON='[{"name": "dev1"}, {"name": "dev2"}]'
+export SSH_PUBLIC_KEY="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5..."
 
 # Test connectivity
 ansible all -i inventory.ini -m ping
@@ -101,50 +156,83 @@ ansible all -i inventory.ini -m ping
 ansible-playbook -i inventory.ini site.yml
 ```
 
+### GitHub Actions Deployment
+Create `.github/workflows/deploy.yml`:
+```yaml
+name: Deploy with Ansible
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Ansible
+        run: |
+          pip install ansible
+          
+      - name: Deploy to servers
+        env:
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          USERS_JSON: ${{ secrets.USERS_JSON }}
+          SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}
+        run: |
+          ansible-playbook -i inventory.ini site.yml
+```
+
 ### Individual Server Deployment
 ```bash
 # Deploy only user management (Server1)
-ansible-playbook -i inventory.ini site.yml --limit server1
+ansible-playbook -i inventory.ini site.yml --limit homework
 
 # Deploy only application (Server2)
-ansible-playbook -i inventory.ini site.yml --limit server2
+ansible-playbook -i inventory.ini site.yml --limit github
 ```
 
-## 🔐 Security Configuration
+## 🔐 Security Best Practices
+
+### Secret Management
+- **Never commit secrets** to version control
+- **Use different secrets** for different environments
+- **Rotate secrets regularly**, especially API keys
+- **Use strong passwords** with mixed characters
+- **Limit secret access** to necessary team members only
 
 ### User Management (Server1)
-The playbook creates three development users:
-- `dev1` / `pass1`
-- `dev2` / `pass2` 
-- `dev3` / `pass3`
-
-**Security Notes:**
-- Passwords are hashed using SHA512
-- SSH public key authentication is enabled
-- Users are added to the root group
+- Users are created dynamically from the `USERS_JSON` secret
+- SSH public key authentication is enabled for all users
+- Users are added to the root group for administrative access
+- Bash shell is configured for all users
 
 ### Application Security (Server2)
-- Environment variables for sensitive data
+- Environment variables sourced from GitHub secrets
 - Session management with configurable secrets
 - Nginx proxy for additional security layer
+- Process isolation with PM2
 
 ## 🌐 Application Access
 
 After deployment, the quiz application will be available at:
 - **URL**: `http://quizzzzz.camdvr.org`
-- **Admin Panel**: Login with admin/admin123
+- **Admin Panel**: Login with credentials from GitHub secrets
 - **Port**: Application runs on port 3000, proxied through Nginx
 
 ## 📝 Environment Variables
 
-The application uses these environment variables:
+The application uses these environment variables (sourced from GitHub secrets):
 ```bash
 PORT=3000
 NODE_ENV=development
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=admin123
-SESSION_SECRET=supersecret
-OPENROUTER_API_KEY=<ai_api_key>
+ADMIN_USERNAME=admin                    # Default value
+ADMIN_PASSWORD=${ADMIN_PASSWORD}        # From GitHub secret
+SESSION_SECRET=${SESSION_SECRET}        # From GitHub secret
+OPENROUTER_API_KEY=${OPENROUTER_API_KEY} # From GitHub secret
 ```
 
 ## 🔄 Process Management
@@ -165,10 +253,23 @@ pm2 restart myapp
 
 ### Common Issues
 
+**Missing Environment Variables**
+```bash
+# Check if secrets are properly set
+echo $ADMIN_PASSWORD
+echo $SESSION_SECRET
+
+# Verify users JSON format
+echo $USERS_JSON | python -m json.tool
+```
+
 **SSH Connection Failed**
 ```bash
 # Test SSH connectivity
 ssh -i ~/.ssh/id_rsa root@192.168.11.86
+
+# Verify SSH public key format
+ssh-keygen -l -f ~/.ssh/id_ed25519.pub
 ```
 
 **Application Not Starting**
@@ -177,8 +278,8 @@ ssh -i ~/.ssh/id_rsa root@192.168.11.86
 pm2 list
 pm2 logs myapp
 
-# Check Nginx status
-sudo systemctl status nginx
+# Check environment file
+cat /var/www/myapp/.env
 ```
 
 **Domain Not Resolving**
@@ -187,15 +288,20 @@ sudo systemctl status nginx
 
 ## 🔧 Customization
 
-### Adding Users
-Edit `roles/server1/vars/main.yml`:
-```yaml
-users:
-  - { name: newuser, password: "newpass" }
+### Adding More Users
+Update the `USERS_JSON` secret with additional users:
+```json
+[
+  {"name": "dev1"},
+  {"name": "dev2"},
+  {"name": "dev3"},
+  {"name": "newuser"},
+  {"name": "staging"}
+]
 ```
 
 ### Changing Application Settings
-Edit `roles/server2/defaults/main.yml`:
+Edit `roles/github/defaults/main.yml` or override with additional secrets:
 ```yaml
 app_domain: "your-domain.com"
 app_env:
@@ -203,11 +309,11 @@ app_env:
   # ... other settings
 ```
 
-### Updating SSH Key
-Replace the public key in `roles/server1/vars/main.yml`:
-```yaml
-my_pubkey: "ssh-ed25519 YOUR_NEW_PUBLIC_KEY"
-```
+### Multiple Environment Support
+Create different secret sets for different environments:
+- `PROD_ADMIN_PASSWORD`, `STAGING_ADMIN_PASSWORD`
+- `PROD_SESSION_SECRET`, `STAGING_SESSION_SECRET`
+- etc.
 
 ## 📚 Dependencies
 
@@ -223,14 +329,10 @@ my_pubkey: "ssh-ed25519 YOUR_NEW_PUBLIC_KEY"
 - `ansible.builtin`
 - `ansible.posix`
 
-## 🤝 Contributing
+## 🚨 Security Warnings
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test the deployment
-5. Submit a pull request
-
----
-
-**Note**: Remember to update sensitive information like passwords, SSH keys, and API keys before deploying to production environments.
+1. **Never expose secrets** in logs or console output
+2. **Use HTTPS** in production environments
+3. **Regularly update** dependencies and system packages
+4. **Monitor access logs** for suspicious activity
+5. **Backup configurations** before making changes
