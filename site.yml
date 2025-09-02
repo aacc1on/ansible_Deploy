@@ -1,11 +1,11 @@
 - name: Deploy to management server
-  hosts: server1
+  hosts: homework
   become: true
   roles:
-    - server1
+    - homework
 
 - name: Deploy Github
-  hosts: server2
+  hosts: github
   become: true
   roles:
-    - server2
+    - github

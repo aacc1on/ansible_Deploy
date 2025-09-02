@@ -1,0 +1,12 @@
+app_repo: "https://github.com/aacc1on/quiz_MVC.git"
+app_dir: "/var/www/myapp"
+app_domain: "quizzzzz.camdvr.org"
+
+app_env:
+  PORT: "3000"
+  NODE_ENV: "development"
+  ADMIN_USERNAME: "{{ lookup('env', 'ADMIN_USERNAME') | default('admin') }}"
+  ADMIN_PASSWORD: "{{ lookup('env', 'ADMIN_PASSWORD') | mandatory }}"
+  SESSION_SECRET: "{{ lookup('env', 'SESSION_SECRET') | mandatory }}"
+  OPENROUTER_API_KEY: "{{ lookup('env', 'OPENROUTER_API_KEY') | mandatory }}"
+  

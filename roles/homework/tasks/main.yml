@@ -5,7 +5,6 @@
     append: true
     shell: /bin/bash
     create_home: true
-    password: "{{ item.password | password_hash('sha512') }}"
   loop: "{{ users }}"
 
 - name: Add SSH public key for each user
