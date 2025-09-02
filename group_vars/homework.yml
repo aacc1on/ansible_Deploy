@@ -1,7 +1,0 @@
----
-users:
-  - { name: dev1 }
-  - { name: dev2 }
-  - { name: dev3 }
-
-my_pubkey: "{{ lookup('env', 'SSH_PUBLIC_KEY') | default('') }}"
